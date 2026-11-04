@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>airllm — Defensive Security Audit</title>
+<style>body{font-family:Inter,system-ui,sans-serif;background:#f8f9fa;color:#202124;margin:0}main{max-width:900px;margin:32px auto;padding:0 20px}textarea{width:100%;height:220px;padding:12px;border:1px solid #dfe3e8;border-radius:12px;box-sizing:border-box}button{padding:10px 18px;border:0;border-radius:9px;background:#1683f7;color:#fff;cursor:pointer} .card{background:#fff;border:1px solid #e8eaed;border-radius:14px;padding:18px;margin:16px 0}code{background:#f1f3f4;padding:2px 6px;border-radius:6px} li{margin:6px 0}</style>
+</head>
+<body><main>
+<h1>Defensive Security Audit — airllm</h1>
+<p>Paste code from a system you own, or a URL to fetch (CORS permitting). All checks run locally; nothing is uploaded.</p>
+<div class="card">
+<label>Code / HTML<br><textarea id="src" placeholder="Paste index.html or DOCTYPE html.html here…"></textarea></label><br><br>
+<button onclick="audit()">Run audit</button>
+<button onclick="loadRepo()">Load known airllm findings</button>
+<ul id="out"></ul>
+</div>
+<div class="card"><h2>Repo checklist</h2><ul>
+<li>Rename <code>DOCTYPE html.html</code> to <code>index.html</code>; remove meta-refresh redirect stub.</li>
+<li>Add SRI to <code>https://unpkg.com/leaflet@1.9.4/…</code> or vendor Leaflet locally.</li>
+<li>Enable GitHub Dependabot alerts + Code scanning (currently disabled / no analysis).</li>
+<li>Add CSP headers, frame-options, and fix unsigned commits (last 2 commits unsigned).</li>
+</ul></div>
+</main>
+<script>
+const checks=[
+ {name:'Leaked secret / key pattern',re:/(api[_-]?key|secret|token|password)\s*[:=]\s*["'][A-Za-z0-9_\-]{16,}/i,fix:'Remove, rotate, use env vars.'},
+ {name:'Meta-refresh open redirect',re:/http-equiv=["']refresh["'][^>]*url=/i,fix:'Replace redirect stub with real index.html and fixed internal path.'},
+ {name:'External CDN without SRI',re:/<(link|script)[^>]+(href|src)=["']https:\/\/(unpkg|cdn)[^>]*>/i,fix:'Pin version, add integrity + crossorigin, or vendor locally.'},
+ {name:'Inline event handler',re:/\son(click|error|load|mouseover)=/i,fix:'Use addEventListener; add CSP script-src.'},
+ {name:'localStorage use',re:/localStorage\.(get|set)Item/i,fix:'Avoid storing secrets; scope and expire data.'},
+ {name:'Mixed content http://',re:/src=["']http:\/\//i,fix:'Use https:// only.'},
+ {name:'Dangerous filename hint',re:/DOCTYPE\s+html/i,fix:'Rename to index.html; avoid spaces/doctype in filenames.'}
+];
+function audit(){const t=document.getElementById('src').value;const out=document.getElementById('out');out.innerHTML='';
+ if(!t){out.innerHTML='<li>No input provided.</li>';return}
+ checks.forEach(c=>{const li=document.createElement('li');li.textContent=(c.re.test(t)?'⚠ ':'✓ ')+c.name+(c.re.test(t)?' — '+c.fix:'');out.appendChild(li)});
+ if(!/Content-Security-Policy/i.test(t))out.innerHTML+='<li>⚠ No CSP detected in pasted code — add CSP headers at host.</li>';}
+function loadRepo(){document.getElementById('src').value='<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">\n<meta http-equiv="refresh" content="0;url=DOCTYPE html.html">';audit();}
+</script></body></html>
